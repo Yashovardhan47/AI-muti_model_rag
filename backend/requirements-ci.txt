@@ -1,0 +1,26 @@
+# Slim set for offline hash/extractive integration checks; production extras in requirements.txt.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+pydantic-settings>=2.5,<3
+sqlalchemy>=2.0,<3
+alembic>=1.13,<2
+PyJWT>=2.9,<3
+bcrypt>=4.2,<5
+python-multipart>=0.0.9,<1
+httpx>=0.27,<1
+redis>=5,<7
+celery>=5.4,<6
+PyMuPDF>=1.24,<2
+pdfplumber>=0.11,<1
+python-docx>=1.1,<2
+python-pptx>=1.0,<2
+pandas>=2.2,<3
+openpyxl>=3.1,<4
+Pillow>=10,<13
+pytesseract>=0.3,<1
+numpy>=1.26,<3
+rank-bm25>=0.2,<1
+qdrant-client>=1.12,<3
+reportlab>=4.2,<5
+email-validator>=2.2,<3
+pytest>=8,<10
