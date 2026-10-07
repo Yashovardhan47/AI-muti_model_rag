@@ -12,11 +12,13 @@ class Embedder:
         self.cfg = get_settings()
         self.kind = self.cfg.embedding_provider
         self.model = None
-        if self.kind in {"bge", "e5", "sentence-transformers"}:
+        if self.kind in {"bge", "e5", "multilingual-e5", "sentence-transformers"}:
             from sentence_transformers import SentenceTransformer
             name = self.cfg.embedding_model
             if self.kind == "e5" and name == "BAAI/bge-small-en-v1.5":
                 name = "intfloat/e5-small-v2"
+            if self.kind == "multilingual-e5" and name == "BAAI/bge-small-en-v1.5":
+                name = "intfloat/multilingual-e5-small"
             self.model = SentenceTransformer(name)
 
     def embed(self, texts: list[str], query: bool = False) -> list[list[float]]:
@@ -61,7 +63,7 @@ class Embedder:
             response = httpx.post("https://api.openai.com/v1/embeddings", headers={"Authorization": f"Bearer {self.cfg.openai_api_key}"}, json={"model": self.cfg.embedding_model if self.cfg.embedding_model != "BAAI/bge-small-en-v1.5" else "text-embedding-3-small", "input": texts}, timeout=90)
             response.raise_for_status()
             return [item["embedding"] for item in sorted(response.json()["data"], key=lambda x: x["index"])]
-        if self.kind == "e5": texts = [("query: " if query else "passage: ") + x for x in texts]
+        if self.kind in {"e5", "multilingual-e5"}: texts = [("query: " if query else "passage: ") + x for x in texts]
         return self.model.encode(texts, normalize_embeddings=True, show_progress_bar=False).tolist()
 
 

@@ -1,0 +1,1 @@
+{"records":[{"time":"2026-02-11T09:15:00Z","asset":"P-17","pressure":10,"level":"ok"},{"time":"2026-02-11T09:20:00Z","asset":"P-17","pressure":2,"level":"error"},{"time":"2026-02-11T09:25:00Z","asset":"P-17","pressure":1,"level":"critical"}]}

@@ -1,0 +1,4 @@
+Fictional Orion plant incident, 2026-02-11.
+Cooling pump P-17 stopped at 09:20 UTC. Priya Rao was assigned to replace the seal by Friday.
+The operations team marked the incident high severity because the backup pump was offline.
+The maintenance action was approved by Nikhil Sen. This is a synthetic test record.

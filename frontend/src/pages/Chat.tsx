@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, CircularProgress } from '@mui/material'
 import { Download, ExternalLink, Plus, RotateCcw, Send, Sparkles, ShieldCheck } from 'lucide-react'
-import { api, errorText, previewFile } from '../lib/api'
+import { api, errorText } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { Heading } from '../components/Layout'
-import type { EvidenceAudit, Message, StoredFile } from '../lib/types'
+import EvidencePreview from '../components/EvidencePreview'
+import type { Citation, EvidenceAudit, Message, StoredFile } from '../lib/types'
 
 const queryTypes = [
   ['qa', 'Question & answer'], ['summary', 'Summarize'], ['compare', 'Compare'],
@@ -43,6 +44,8 @@ export default function Chat() {
   const [queryType, setQueryType] = useState('qa')
   const [fileIds, setFileIds] = useState<string[]>([])
   const [topK, setTopK] = useState(6)
+  const [responseLanguage, setResponseLanguage] = useState('auto')
+  const [selectedEvidence, setSelectedEvidence] = useState<Citation | null>(null)
   const bottom = useRef<HTMLDivElement>(null)
   const { data: files = [] } = useQuery<StoredFile[]>({ queryKey: ['files'], queryFn: async () => (await api.get('/files/list')).data })
   const { data: sessions = [], refetch } = useQuery<{ id: string; title: string }[]>({ queryKey: ['sessions'], queryFn: async () => (await api.get('/chat/history')).data })
@@ -64,7 +67,7 @@ export default function Chat() {
     setMessages(old => [...old, { role: 'user', content: value }, { role: 'assistant', content: '' }])
     setQuestion('')
     try {
-      const body = JSON.stringify({ question: value, session_id: session || null, file_ids: fileIds, query_type: queryType, top_k: topK })
+      const body = JSON.stringify({ question: value, session_id: session || null, file_ids: fileIds, query_type: queryType, top_k: topK, response_language: responseLanguage })
       const request = () => fetch('/api/chat/query/stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + useAuth.getState().access }, body
       })
@@ -141,8 +144,11 @@ export default function Chat() {
             {queryTypes.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
           </select>
           <select aria-label="Filter by source" className="field !w-auto max-w-45" value={fileIds[0] || ''} onChange={event => setFileIds(event.target.value ? [event.target.value] : [])}>
-            <option value="">All my sources</option>
-            {files.filter(file => file.status === 'ready').map(file => <option key={file.id} value={file.id}>{file.name}</option>)}
+            <option value="">All current sources</option>
+            {files.filter(file => file.status === 'ready').map(file => <option key={file.id} value={file.id}>{file.name} · v{file.version}{file.read_only ? ' · shared' : ''}</option>)}
+          </select>
+          <select aria-label="Answer language" className="field !w-auto" value={responseLanguage} onChange={event => setResponseLanguage(event.target.value)}>
+            <option value="auto">Question language</option><option value="en">English</option><option value="hi">हिन्दी</option><option value="te">తెలుగు</option>
           </select>
           <label className="muted text-xs">Top K <input className="w-12 field !p-1 ml-1" type="number" min={1} max={20} value={topK} onChange={event => setTopK(Number(event.target.value))}/></label>
         </div>
@@ -164,9 +170,10 @@ export default function Chat() {
                 </div>
                 {!!message.citations?.length && <div className="border-t mt-4 pt-4" style={{ borderColor: 'var(--line)' }}>
                   <div className="muted text-xs uppercase tracking-wider mb-3">Sources · original file and location</div>
-                  <div className="space-y-2">{message.citations.map(citation => <button key={citation.chunk_id} disabled={citation.available === false} className="raised p-3 w-full text-left hover:border-teal-300/40 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => previewFile(citation.file_id).catch(exception => setError(errorText(exception)))}>
-                    <span className="text-teal-300 text-xs font-semibold">[{citation.number}] {citation.file_name} · {citation.location} {citation.available === false ? '· source removed or changed' : <ExternalLink size={12} className="inline"/>}</span>
+                  <div className="space-y-2">{message.citations.map(citation => <button key={citation.chunk_id} disabled={citation.available === false} className="raised p-3 w-full text-left hover:border-teal-300/40 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setSelectedEvidence(citation)}>
+                    <span className="text-teal-300 text-xs font-semibold">[{citation.number}] {citation.file_name} · {citation.location} {citation.available === false ? '· source removed or changed' : <ExternalLink size={12} className="inline"/>}{citation.source_state === 'superseded' ? ' · older version' : ''}</span>
                     <p className="muted text-xs mt-1 line-clamp-2">{citation.excerpt}</p>
+                    {!!citation.quality?.flags?.length && <p className="muted text-xs mt-1">Review {citation.quality.flags.join(', ')}</p>}
                   </button>)}</div>
                 </div>}
               </>}
@@ -183,5 +190,6 @@ export default function Chat() {
         <p className="muted text-[11px] px-5 pb-3">Citation and number checks are structural. Review the original source for important decisions.</p>
       </section>
     </div>
+    <EvidencePreview citation={selectedEvidence} onClose={() => setSelectedEvidence(null)}/>
   </>
 }

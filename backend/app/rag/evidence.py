@@ -13,11 +13,12 @@ class LocatedHit(Protocol):
     file_name: str
     location: str
     excerpt: str
+    quality: dict
 
 
 CITATION = re.compile(r"\[(\d+)\]")
 NUMBER = re.compile(r"(?<![\w])[-+]?\d[\d,]*(?:\.\d+)?%?(?![\w])")
-SENTENCE = re.compile(r"\n+|(?<=[.!?])\s+(?=[A-Z0-9\"'])|(?<=\])\s+(?=[A-Z0-9\"'])")
+SENTENCE = re.compile(r"\n+|(?<=[.!?।])\s+(?=\S)|(?<=\])\s+(?=\S)")
 
 
 def _numbers(text: str) -> set[tuple[Decimal, bool]]:
@@ -40,9 +41,12 @@ def audit_answer(answer: str, hits: list[LocatedHit], *, extractive: bool = Fals
     if not hits:
         return {"status": "insufficient", "abstained": True, "checks": [],
                 "warnings": ["No indexed source passages were retrieved."]}
+    uncertain = sorted({flag for hit in hits for flag in getattr(hit, "quality", {}).get("flags", [])})
+    uncertainty_warning = (["Some evidence comes from " + ", ".join(uncertain) + "; check the original media and numbers."]
+                           if uncertain else [])
     if extractive:
         return {"status": "source_excerpts", "abstained": False, "checks": [],
-                "warnings": ["These are direct excerpts, not a synthesized or fact-checked answer."]}
+                "warnings": ["These are direct excerpts, not a synthesized or fact-checked answer."] + uncertainty_warning}
 
     by_number = {hit.number: hit for hit in hits}
     checks = []
@@ -55,8 +59,13 @@ def audit_answer(answer: str, hits: list[LocatedHit], *, extractive: bool = Fals
             issues.append("unknown_citation")
         if citations and not issues:
             evidence = " ".join(by_number[number].excerpt for number in citations)
-            if not _numbers(claim).issubset(_numbers(evidence)):
+            claim_numbers = _numbers(claim)
+            if not claim_numbers.issubset(_numbers(evidence)):
                 issues.append("number_not_in_cited_excerpt")
+            elif claim_numbers and all(any(flag in getattr(by_number[number], "quality", {}).get("flags", [])
+                                           for flag in ("ocr", "generated_caption", "asr"))
+                                      for number in citations):
+                issues.append("uncertain_media_number_requires_independent_source")
         checks.append({"text": claim[:500], "citation_numbers": citations,
                        "status": "blocked" if issues else "citation_checked", "issues": issues})
 
@@ -65,7 +74,7 @@ def audit_answer(answer: str, hits: list[LocatedHit], *, extractive: bool = Fals
         return {"status": "withheld", "abstained": True, "checks": [],
                 "warnings": ["Generated answer withheld: " + (", ".join(reasons) if reasons else "no checkable claims") + "."]}
     return {"status": "citation_checked", "abstained": False, "checks": checks,
-            "warnings": ["Citations and exact numbers were checked; semantic support still requires source review."]}
+            "warnings": ["Citations and exact numbers were checked; semantic support still requires source review."] + uncertainty_warning}
 
 
 def safe_answer(draft: str, hits: list[LocatedHit], *, extractive: bool = False) -> tuple[str, dict]:

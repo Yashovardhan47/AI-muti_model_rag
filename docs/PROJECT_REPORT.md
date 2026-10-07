@@ -51,7 +51,7 @@ flowchart TD
   J --> A
 ```
 
-Each file receives a UUID, owner ID, SHA-256 digest, status, media type, and storage path. Its chunks carry modality, ordinal, and page/slide/row/time location. An embedding reference links a chunk to text or optional image vector IDs and stores its vector to support FAISS per-user reconstruction. Chat sessions and messages preserve the answer and citations. Query logs, usage metrics, and audit events support dashboards and operational review. Alembic creates the schema; PostgreSQL is the concurrent option and SQLite supports demonstration.
+Each file receives a UUID, owner ID, SHA-256 digest, status, media type, storage path, source-family ID, and revision number. Its chunks carry modality, ordinal, structured page/slide/row/time locator, and extraction quality flags. Read grants are bound to individual file revisions and copied to new revisions. An embedding reference links a chunk to text or optional image vector IDs and stores its vector for FAISS reconstruction and index replay. Chat sessions and messages preserve the answer and citations. Query logs, usage metrics, and audit events support dashboards and operational review. Alembic creates the schema; PostgreSQL is the concurrent option and SQLite supports demonstration.
 
 ### 5. Pipeline design
 
@@ -69,11 +69,11 @@ Each file receives a UUID, owner ID, SHA-256 digest, status, media type, and sto
 
 The backend uses FastAPI routers and Pydantic validation. Passwords use bcrypt. Access tokens expire after 30 minutes; refresh tokens expire after 14 days, are stored server-side by token identifier, and are revoked on rotation/logout. Role assignment is limited to an admin endpoint and public signup always receives `user`. Rate limiting uses Redis if configured, otherwise a per-process memory window. The browser keeps tokens in session storage for this prototype. A local task runs after response for simple demo use; Redis/Celery moves processing out of the API process and caches embedding vectors by model and text hash for seven days. Source previews require the same owner checks as delete and chat.
 
-The frontend uses React Query for server data, Zustand for authentication state, Axios for ordinary requests, Fetch for SSE, and responsive layouts with light/dark themes. Search shows source locations and excerpts; chat includes an expandable evidence audit and prevents opening a citation whose source is no longer available. Deleting a file redacts assistant answers citing it and the deleted source's stored excerpt, including in exported chat history. User-written questions and session titles remain. The stream buffers provider text for checking before presenting delta events, increasing time to first answer. PDF, CSV, and JSON exports offer a simple summary, inventory, and conversation history.
+The frontend uses React Query for server data, Zustand for authentication state, Axios for ordinary requests, Fetch for SSE, and responsive layouts with light/dark themes. Search and chat open authenticated evidence previews with page images, OCR regions, row pointers, or timestamp playback. Uploads allow revisions, language selection, owner-issued sharing, and exact table/log comparison. Deleting or revoking a source redacts stored cited assistant answers and excerpts, including in exported chat history. User-written questions and session titles remain. The stream buffers provider text for checking before presenting delta events, increasing time to first answer. PDF, CSV, and JSON exports offer a simple summary, inventory, and conversation history.
 
 ### 7. Verification performed
 
-The first focused integration suite runs against an isolated SQLite database and a local Qdrant directory. It checks registration, refresh rotation, logout, an admin boundary, file duplicate detection, per-user file and chat isolation, upload and index readiness, search, citations, stream events, log parsing, and deletion. The TypeScript/Vite production build succeeds. These checks establish a runnable baseline but do not measure information retrieval quality, parser accuracy on a diverse real corpus, or hardening under hostile uploads.
+The focused integration suite runs against an isolated SQLite database and a local Qdrant directory. It checks registration, refresh rotation, logout, admin boundaries, file duplicates, per-user isolation, ingest/search/chat, source revisions, sharing/revocation, located evidence, exact table-value changes, index replay, log parsing, and deletion. A small synthetic labeled smoke set is included for repeatable retrieval runs. These checks establish a runnable baseline but do not measure information retrieval quality, parser accuracy on a diverse real corpus, or hardening under hostile uploads.
 
 ### 8. Evaluation plan and hypotheses
 
@@ -85,7 +85,7 @@ Per-user isolation and source provenance are necessary but insufficient for regu
 
 ### 10. Conclusion and next work
 
-Atlas delivers a coherent, testable multimodal RAG application with explicit provenance and tenant boundaries. The most valuable next work is a labeled evaluation set and error analysis, followed by ingestion sandboxing, semantic citation verification, index reconciliation, and measured multilingual/chart improvements. A research paper should be submitted only after running the controlled comparisons and writing actual results.
+Atlas delivers a coherent, testable multimodal RAG application with revision-aware provenance and tenant boundaries. The most valuable next work is a representative, human-adjudicated evaluation set and error analysis, followed by ingestion sandboxing, semantic citation verification, durable connector and backup testing, and measured multilingual/chart improvements. A research paper should be submitted only after running controlled comparisons and writing actual results.
 
 ### References
 

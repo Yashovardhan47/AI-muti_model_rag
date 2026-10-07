@@ -44,6 +44,18 @@ services:
       STORAGE_DIR: /data/uploads
     volumes: [uploads:/data/uploads]
     depends_on: [api]
+  beat:
+    build: ./backend
+    command: ["celery", "-A", "app.workers.tasks.celery_app", "beat", "--loglevel=info"]
+    env_file: .env
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+psycopg://rag:${POSTGRES_PASSWORD}@postgres:5432/rag
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      STORAGE_DIR: /data/uploads
+    volumes: [uploads:/data/uploads]
+    depends_on: [worker]
   frontend:
     build: ./frontend
     ports: ["5173:80"]

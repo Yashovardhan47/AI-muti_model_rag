@@ -30,10 +30,13 @@ def summarize(records: list[dict]) -> dict:
     def mean(key: str):
         values = [float(record[key]) for record in records if record.get(key) is not None]
         return round(statistics.mean(values), 4) if values else None
+    latencies = sorted(record["latency_ms"] for record in records)
+    p95 = latencies[max(0, (95 * len(latencies) + 99) // 100 - 1)] if latencies else None
     return {"cases": len(records), "evidence_recall_at_k": mean("evidence_recall"),
             "mean_reciprocal_rank": mean("reciprocal_rank"),
             "abstention_accuracy": mean("abstention_correct"),
-            "median_latency_ms": round(statistics.median(record["latency_ms"] for record in records), 1) if records else None}
+            "median_latency_ms": round(statistics.median(latencies), 1) if latencies else None,
+            "p95_latency_ms": round(p95, 1) if p95 is not None else None}
 
 
 def api_json(base: str, path: str, token: str, payload: dict | None = None) -> dict | list:
@@ -74,11 +77,15 @@ def main():
             audit = response["audit"]
         score = score_case(item["evidence"], hits, item["answerable"], audit)
         records.append({"case": line_number, "modality": item.get("modality", "unspecified"),
+                        "language": item.get("language", "unspecified"),
                         "latency_ms": round((time.monotonic() - started) * 1000, 1), **score})
     by_modality = {name: summarize([record for record in records if record["modality"] == name])
                    for name in sorted({record["modality"] for record in records})}
+    by_language = {name: summarize([record for record in records if record["language"] == name])
+                   for name in sorted({record["language"] for record in records})}
     report = {"dataset": str(args.dataset), "top_k": args.top_k, "answers": args.answers,
-              "overall": summarize(records), "by_modality": by_modality, "cases": records}
+              "overall": summarize(records), "by_modality": by_modality, "by_language": by_language,
+              "cases": records, "scope": "Retrieval and structural abstention; semantic faithfulness requires human review."}
     output = json.dumps(report, indent=2)
     if args.output:
         args.output.write_text(output + "\n", encoding="utf-8")

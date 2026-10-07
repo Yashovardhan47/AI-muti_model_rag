@@ -19,6 +19,12 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue(result["abstention_correct"])
         self.assertIsNone(module.score_case([], hits, False)["evidence_recall"])
 
+    def test_latency_and_group_summary(self):
+        report = module.summarize([{"latency_ms": value, "evidence_recall": 1, "reciprocal_rank": 1}
+                                   for value in range(1, 21)])
+        self.assertEqual(report["p95_latency_ms"], 19)
+        self.assertEqual(report["median_latency_ms"], 10.5)
+
 
 if __name__ == "__main__":
     unittest.main()

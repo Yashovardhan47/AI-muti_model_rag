@@ -31,7 +31,7 @@ class User(Base):
 
 class File(Base):
     __tablename__ = "files"
-    __table_args__ = (UniqueConstraint("owner_id", "sha256", name="uq_owner_sha256"),)
+    __table_args__ = (UniqueConstraint("family_id", "version", name="uq_file_family_version"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(255))
@@ -42,8 +42,24 @@ class File(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[str] = mapped_column(Text, default="")
+    family_id: Mapped[str | None] = mapped_column(String(36), index=True, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    supersedes_id: Mapped[str | None] = mapped_column(ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    ocr_languages: Mapped[str] = mapped_column(String(40), default="eng")
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     chunks: Mapped[list["Chunk"]] = relationship(back_populates="file", cascade="all, delete-orphan")
+
+
+class FileGrant(Base):
+    __tablename__ = "file_grants"
+    __table_args__ = (UniqueConstraint("file_id", "user_id", name="uq_file_grant_user"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    file_id: Mapped[str] = mapped_column(ForeignKey("files.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    granted_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Chunk(Base):
@@ -55,6 +71,8 @@ class Chunk(Base):
     text: Mapped[str] = mapped_column(Text)
     modality: Mapped[str] = mapped_column(String(30), default="text")
     location: Mapped[str] = mapped_column(String(120), default="")
+    locator_json: Mapped[str] = mapped_column(Text, default="{}")
+    quality_json: Mapped[str] = mapped_column(Text, default="{}")
     file: Mapped[File] = relationship(back_populates="chunks")
 
 

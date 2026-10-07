@@ -42,14 +42,24 @@ For privacy test that no answer or citation contains a canary from another user'
 
 Create a JSONL file with one human-labeled question per line. Each row has `question`, `answerable` (boolean), `modality` (label), and `evidence` (an array of exact `file_id` and `location` pairs returned by uploads and search). Include empty evidence for genuinely unanswerable questions; keep them separate when interpreting retrieval recall. Use a dedicated test account and de-identified files.
 
+To generate a ten-case **synthetic smoke manifest** with English, Hindi, and Telugu prompts over text, CSV, and JSON fixtures, start the API in hash/extractive mode and run:
+
+```bash
+export ATLAS_BENCHMARK_TOKEN='dedicated test-account access token'
+python backend/tools/seed_benchmark.py --output benchmark-smoke.jsonl
+python backend/tools/evaluate.py benchmark-smoke.jsonl --top-k 6 --output benchmark-results.json
+```
+
+The seed script uploads the fixtures, waits for indexing, and writes the actual file IDs. It intentionally does not claim representative multimodal quality. For a cross-language semantic study, choose `EMBEDDING_PROVIDER=multilingual-e5` before indexing. Install `tesseract-ocr-hin` and `tesseract-ocr-tel` to evaluate scanned Hindi/Telugu content. The manifest's unanswerable case exposes false answers in extractive mode; it is a measured failure, not a passing guardrail guarantee.
+
 ```bash
 export ATLAS_BENCHMARK_TOKEN='access token for the test account'
 python backend/tools/evaluate.py study.jsonl --top-k 6 --output study-results.json
 python backend/tools/evaluate.py study.jsonl --top-k 6 --answers --output study-answers.json
 ```
 
-The default run calls `/search` and reports gold evidence recall@k and MRR overall and by modality. `--answers` additionally calls `/chat/query` and reports abstention accuracy; it may incur cloud provider cost and writes chat history to the test account. The script does **not** compute factual accuracy or prove citation support. Human annotation and blind review are still required for the research paper. Compare settings using the same labels and document split, and record model/provider revisions with each run.
+The default run calls `/search` and reports gold evidence recall@k, MRR, median/p95 latency overall and by modality and language. `--answers` additionally calls `/chat/query` and reports structural abstention accuracy; it may incur cloud provider cost and writes chat history to the test account. The script does **not** compute factual accuracy or prove citation support. Human annotation and blind review are still required for the research paper. Compare settings using the same labels and document split, and record model/provider revisions with each run.
 
 ## Current checked result
 
-At initial implementation the focused backend integration suite completed with 4 passing tests and the frontend TypeScript/Vite build succeeded. After the evidence update, the dependency-free unit tests should be run again; the complete integration and frontend checks must be rerun with installed dependencies on the exact branch commit before demonstration. These are implementation checks, not retrieval-quality or security certification.
+Run `python -m unittest tests.test_evidence tests.test_evaluation` from `backend/` for dependency-free audit and metric checks. The full `pytest -q` integration suite covers versioned search, read grants and revocation, evidence access, exact table changes, and index replay in addition to the original auth and ingestion flows. Run `alembic upgrade head` on a fresh and a pre-0003 database, then `npm run build` in `frontend/`. Review the exact main-branch CI run before demonstration. These implementation checks do not establish retrieval quality or security certification.

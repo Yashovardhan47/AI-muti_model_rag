@@ -36,6 +36,17 @@ class EvidenceAuditTests(unittest.TestCase):
         self.assertEqual(audit_answer("[1] pressure 12%", self.hits, extractive=True)["status"], "source_excerpts")
         self.assertEqual(audit_answer("No sources", [])["status"], "insufficient")
 
+    def test_ocr_only_numerical_claim_is_withheld_and_flagged(self):
+        self.hits[0].quality = {"flags": ["ocr"], "ocr_signal": 0.54}
+        answer, audit = safe_answer("Pump pressure reached 12% [1].", self.hits)
+        self.assertEqual(audit["status"], "withheld")
+        self.assertNotIn("12% [1].", answer)
+        self.assertEqual(audit["checks"], [])
+
+    def test_multilingual_sentences_each_need_a_citation(self):
+        result = audit_answer("पंप बंद हुआ [1]। दबाव बढ़ा।", self.hits)
+        self.assertEqual(result["status"], "withheld")
+
 
 if __name__ == "__main__":
     unittest.main()

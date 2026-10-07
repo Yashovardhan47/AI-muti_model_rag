@@ -36,5 +36,6 @@ def split(segments: list[Segment], method: str = "document", size: int = 900, ov
             groups = [text[i:i+size] for i in range(0, len(text), size-overlap)]
         for group in groups:
             if group.strip():
-                output.append(Segment(group.strip(), segment.location, segment.modality, segment.image))
+                output.append(Segment(group.strip(), segment.location, segment.modality, segment.image,
+                                      locator=segment.locator.copy(), quality=segment.quality.copy()))
     return output

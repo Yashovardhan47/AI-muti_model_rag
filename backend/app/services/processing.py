@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.models import File, Chunk, EmbeddingRef, UsageMetric
+from app.models.entities import now
 from app.rag.chunking import split
 from app.rag.embeddings import embedder, clip_vectors
 from app.rag.vector import index
@@ -18,7 +19,7 @@ def process_file(file_id: str, chunk_method: str = "document") -> None:
     with SessionLocal() as db:
         file = db.get(File, file_id)
         if not file: return
-        file.status = "processing"; file.error = None; db.commit()
+        file.status = "processing"; file.error = None; file.processing_started_at = now(); db.commit()
         try:
             old = db.scalars(select(Chunk).where(Chunk.file_id == file.id)).all()
             refs = db.scalars(select(EmbeddingRef).where(EmbeddingRef.chunk_id.in_([x.id for x in old]))).all() if old else []
@@ -26,11 +27,12 @@ def process_file(file_id: str, chunk_method: str = "document") -> None:
             for ref in refs: db.delete(ref)
             for chunk in old: db.delete(chunk)
             db.commit()
-            segments = extract(Path(file.storage_path), Path(file.name).suffix.lower())
+            segments = extract(Path(file.storage_path), Path(file.name).suffix.lower(), ocr_languages=file.ocr_languages)
             parts = split(segments, method=chunk_method, embedder=embedder() if chunk_method == "semantic" else None)
             if not parts: raise ValueError("No extractable content; check OCR or file format")
             for ordinal, part in enumerate(parts):
-                chunk = Chunk(file_id=file.id, owner_id=file.owner_id, ordinal=ordinal, text=part.text[:20000], location=part.location[:120], modality=part.modality)
+                chunk = Chunk(file_id=file.id, owner_id=file.owner_id, ordinal=ordinal, text=part.text[:20000], location=part.location[:120], modality=part.modality,
+                              locator_json=json.dumps(part.locator), quality_json=json.dumps(part.quality))
                 db.add(chunk); db.flush()
                 vector = embedder().embed([chunk.text])[0]
                 ref = EmbeddingRef(chunk_id=chunk.id, provider=get_settings().embedding_provider, index_name="text", vector_id=chunk.id, vector_json=json.dumps(vector))
@@ -41,12 +43,20 @@ def process_file(file_id: str, chunk_method: str = "document") -> None:
                     image_ref = EmbeddingRef(chunk_id=chunk.id, provider="clip", index_name="image", vector_id=__import__("uuid").uuid4().__str__(), vector_json=json.dumps(image_vec))
                     db.add(image_ref); index().put(image_ref, image_vec, file.owner_id, file.id)
             file.status = "ready"
+            file.processing_started_at = None
+            if file.supersedes_id:
+                db.scalar(select(File).where(File.id == file.family_id).with_for_update())
+                db.flush()
+                members = db.scalars(select(File).where(File.family_id == file.family_id, File.status == "ready")).all()
+                newest = max(members, key=lambda member: member.version)
+                for member in members:
+                    member.is_current = member.id == newest.id
             db.add(UsageMetric(owner_id=file.owner_id, metric="chunks_indexed", value=len(parts)))
             db.commit()
         except Exception as exc:
             db.rollback()
             file = db.get(File, file_id)
             if file:
-                file.status = "failed"; file.error = str(exc)[:500]; db.commit()
+                file.status = "failed"; file.error = str(exc)[:500]; file.processing_started_at = None; db.commit()
             log.exception("index failed for file %s", file_id)
             raise

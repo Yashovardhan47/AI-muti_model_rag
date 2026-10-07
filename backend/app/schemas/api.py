@@ -37,12 +37,17 @@ class FileOut(BaseModel):
     created_at: datetime
 
 
+class ShareIn(BaseModel):
+    email: EmailStr
+
+
 class QueryIn(BaseModel):
     question: str = Field(min_length=2, max_length=2000)
     session_id: str | None = None
     file_ids: list[str] = Field(default_factory=list, max_length=50)
     query_type: str = Field(default="qa", pattern="^(qa|summary|compare|risks|keywords|charts|actions|contract|invoice|meeting)$")
     top_k: int = Field(default=6, ge=1, le=20)
+    response_language: Literal["auto", "en", "hi", "te"] = "auto"
 
 
 class Citation(BaseModel):
@@ -55,6 +60,9 @@ class Citation(BaseModel):
     score: float
     source_sha256: str | None = None
     available: bool = True
+    source_state: str = "current"
+    locator: dict = Field(default_factory=dict)
+    quality: dict = Field(default_factory=dict)
 
 
 class ClaimCheck(BaseModel):

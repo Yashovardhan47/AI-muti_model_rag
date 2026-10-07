@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     @field_validator("embedding_provider")
     @classmethod
     def embedding_choice(cls, v: str) -> str:
-        if v not in {"bge", "e5", "sentence-transformers", "openai", "hash"}:
+        if v not in {"bge", "e5", "multilingual-e5", "sentence-transformers", "openai", "hash"}:
             raise ValueError("unsupported embedding provider")
         return v
 

@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import admin_user, current_user
 from app.models import User, File, QueryLog, UsageMetric, AuditLog, Role
+from app.services.reconcile import reconcile
+from app.services.processing import process_file
+from app.workers.tasks import index_file
+from app.core.config import get_settings
 
 router = APIRouter(tags=["analytics"])
 
@@ -46,3 +50,15 @@ def analytics(_: User = Depends(admin_user), db: Session = Depends(get_db)):
             "estimated_tokens": db.scalar(select(func.sum(UsageMetric.value)).where(UsageMetric.metric == "estimated_tokens")) or 0,
             "recent_errors": [{"file_id": f.id, "error": f.error, "status": f.status} for f in db.scalars(select(File).where(File.status == "failed").limit(20))],
             "audit": [{"event": a.event, "target_id": a.target_id, "created_at": a.created_at} for a in db.scalars(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(20))]}
+
+
+@router.post("/admin/reconcile")
+def repair(background: BackgroundTasks, admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    result = reconcile()
+    for file_id in result["queued_files"]:
+        if get_settings().redis_url:
+            index_file.delay(file_id)
+        else:
+            background.add_task(process_file, file_id)
+    db.add(AuditLog(actor_id=admin.id, event="reconcile_index")); db.commit()
+    return result
