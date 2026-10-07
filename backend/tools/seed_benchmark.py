@@ -4,6 +4,7 @@ import json
 import os
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 from sync_folder import api, multipart
 
@@ -29,6 +30,9 @@ def main():
     args = parser.parse_args()
     token = os.getenv("ATLAS_BENCHMARK_TOKEN", "")
     if not token: parser.error("Set ATLAS_BENCHMARK_TOKEN for a dedicated test account")
+    host = urlparse(args.api_base)
+    if host.scheme != "https" and not (host.scheme == "http" and host.hostname in {"localhost", "127.0.0.1"}):
+        parser.error("Use HTTPS for remote servers")
     ids = {}
     for path in sorted(FIXTURES.iterdir()):
         body, boundary = multipart(path, "", "document", "eng")

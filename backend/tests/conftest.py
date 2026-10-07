@@ -7,9 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 from app.core.database import Base, engine
 from app.main import app
+from app.core.rate_limit import _local
 
 @pytest.fixture
 def client():
+    _local.clear()
     Base.metadata.create_all(engine)
     with TestClient(app) as c:
         yield c

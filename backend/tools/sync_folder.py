@@ -71,6 +71,8 @@ def sync_once(folder: Path, state_path: Path, base: str, token: str, method: str
         old_id = previous.get("file_id", "") if previous.get("file_id") in server and server[previous["file_id"]]["is_current"] else ""
         body, boundary = multipart(path, old_id, method, languages)
         result = api(base, token, "/files/upload", body, boundary)
+        if result.get("duplicate") and result["id"] != previous.get("file_id"):
+            raise RuntimeError(f"{relative} matched another source's bytes; add unique content before syncing independently")
         state[relative] = {"sha256": digest, "file_id": result["id"]}
         state_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = state_path.with_suffix(state_path.suffix + ".tmp")

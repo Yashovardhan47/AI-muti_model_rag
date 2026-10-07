@@ -1,4 +1,11 @@
-from tests.test_flows import signup, headers
+def signup(client, email):
+    response = client.post('/auth/register', json={'email': email, 'password': 'strong-password-123'})
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def headers(login):
+    return {'Authorization': 'Bearer ' + login['access_token']}
 
 
 def test_versioned_search_comparison_and_evidence_access(client):
@@ -11,6 +18,9 @@ def test_versioned_search_comparison_and_evidence_access(client):
     first = old.json()['id']
     assert client.post(f'/files/{first}/access', headers=own, json={'email': 'version-reader@example.com'}).status_code == 201
     assert client.get(f'/files/{first}/preview', headers=shared).status_code == 200
+    assert client.delete(f'/files/{first}', headers=shared).status_code == 404
+    assert client.post(f'/files/{first}/process', headers=shared).status_code == 404
+    assert client.patch(f'/files/{first}/tags', headers=shared, json=['private']).status_code == 404
     assert client.get(f'/files/{first}/evidence/unknown', headers=hidden).status_code == 404
 
     before = client.post('/chat/query', headers=shared, json={'question': 'What was the P-17 cost?', 'file_ids': [first]})
