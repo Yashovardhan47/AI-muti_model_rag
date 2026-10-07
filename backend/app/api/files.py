@@ -1,4 +1,5 @@
 import hashlib
+import json
 import mimetypes
 from pathlib import Path
 from uuid import uuid4
@@ -11,7 +12,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.rate_limit import limit
 from app.core.security import current_user
-from app.models import User, File, Chunk, EmbeddingRef, AuditLog
+from app.models import User, File, Chunk, EmbeddingRef, AuditLog, ChatMessage, ChatSession
 from app.rag.vector import index
 from app.services.processing import process_file
 from app.workers.tasks import index_file
@@ -115,6 +116,22 @@ def process_alias(file_id: str, background: BackgroundTasks, chunk_method: str =
 @router.delete("/{file_id}", status_code=204)
 def delete(file_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
     item = owner_file(db, file_id, user.id)
+    # Chat answers may embed source text. Revoke those copies with the file.
+    messages = db.scalars(select(ChatMessage).join(ChatSession, ChatMessage.session_id == ChatSession.id)
+                          .where(ChatSession.owner_id == user.id, ChatMessage.role == "assistant",
+                                 ChatMessage.citations_json.like(f"%{item.id}%"))).all()
+    for message in messages:
+        citations = json.loads(message.citations_json)
+        if not any(citation.get("file_id") == item.id for citation in citations):
+            continue
+        message.content = "Answer removed because a cited source was deleted. Ask again using the remaining files."
+        for citation in citations:
+            if citation.get("file_id") == item.id:
+                citation["excerpt"] = ""
+                citation["available"] = False
+        message.citations_json = json.dumps(citations)
+        message.audit_json = json.dumps({"status": "insufficient", "abstained": True, "checks": [],
+                                         "warnings": ["An answer source was deleted; the previous answer was removed."]})
     chunks = db.scalars(select(Chunk).where(Chunk.file_id == item.id)).all()
     refs = db.scalars(select(EmbeddingRef).where(EmbeddingRef.chunk_id.in_([c.id for c in chunks]))).all() if chunks else []
     index().remove(refs)

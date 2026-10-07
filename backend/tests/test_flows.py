@@ -39,7 +39,11 @@ def test_private_upload_search_chat_and_delete(client):
     assert client.get(f'/chat/history/{session}', headers=h1).json()[1]['citations'][0]['available'] is False
     assert client.delete(f'/files/{file_id}', headers=h1).status_code == 204
     assert client.get('/search', headers=h1, params={'q': 'cooling pump'}).json() == []
-    assert client.get(f'/chat/history/{session}', headers=h1).json()[1]['citations'][0]['available'] is False
+    deleted_history = client.get(f'/chat/history/{session}', headers=h1).json()[1]
+    assert deleted_history['citations'][0]['available'] is False
+    assert deleted_history['citations'][0]['excerpt'] == ''
+    assert deleted_history['content'].startswith('Answer removed because')
+    assert client.get('/reports/export?format=json', headers=h1).json()['messages'][1]['content'] == deleted_history['content']
 
 def test_auth_refresh_rotation_and_admin_boundary(client):
     user = signup(client, 'third@example.com')

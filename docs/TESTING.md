@@ -28,7 +28,7 @@ The integration suite additionally checks that generated unsupported numbers nev
 4. Try invalid extension, mislabeled PDF, empty file, oversized file, duplicate, unsupported password-protected document, and corrupted audio. Check 4xx rejection or visible failed state and retry.
 5. Verify type/date/tag filters, upload/process/delete, reports, history, light/dark layout, mobile navigation, and admin-only routes. Run PostgreSQL + Redis + Qdrant Compose separately from SQLite smoke tests.
 6. Verify provider credentials and Ollama availability when enabling generation. Audit latency and usage costs. Test reconnection, worker restart, queue outage, and deletion during indexing before public deployment.
-7. Ask a model to produce an uncited claim, a nonexistent citation, and a number missing from its cited passage. Inspect the withheld answer and audit in both ordinary chat and SSE. Delete an uploaded source, reopen the conversation, and check that its citation cannot be opened. Also test a wrong nonnumeric claim with a valid citation to see the current guard's limitation.
+7. Ask a model to produce an uncited claim, a nonexistent citation, and a number missing from its cited passage. Inspect the withheld answer and audit in both ordinary chat and SSE. Delete an uploaded source, reopen the conversation, and check that the assistant answer and deleted source excerpt were redacted in history and JSON export. Also test a wrong nonnumeric claim with a valid citation to see the current guard's limitation.
 
 ## Research evaluation protocol
 

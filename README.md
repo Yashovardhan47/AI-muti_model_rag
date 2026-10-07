@@ -10,6 +10,7 @@ A final-year project implementation of private multimodal retrieval-augmented se
 - Document-aware, fixed, recursive, and semantic chunking; BM25 plus dense vector retrieval; optional cross-encoder reranking; file, owner, type, date, and tag search filters; Qdrant, Chroma, or FAISS selection.
 - OpenAI, Anthropic, Ollama (Llama 3/Mistral/Phi model selection), or evidence-only extractive answering. SSE delivers audited answer chunks and a final answer with citations.
 - An evidence audit checks claim-level citation IDs and exact numbers before a generated answer is shown. A failed draft is withheld in favor of direct passages; chat history marks citations stale when their source is removed or its SHA-256 changes. See [novelty roadmap](docs/NOVELTY_ROADMAP.md) for the research target and its limits.
+- Deleting a file redacts stored assistant answers that cited it, clears that source's stored excerpt, and marks the old citation unavailable in chat history and JSON export.
 - Dashboard, uploads, chat history, search, reports, and admin analytics. Source files remain downloadable only by their owners. Local hash embeddings are offered explicitly for a no-download demonstration, with lower semantic quality.
 
 ## Quick start: offline demo
@@ -113,6 +114,7 @@ Copy `.env.example` to `.env`, set a unique 32+ character `JWT_SECRET`, set `POS
 - Responses report `confidence=not_calibrated`. The claim audit checks citation identifiers and exact numeric presence, **not semantic entailment**. It can miss false nonnumeric claims or refuse valid computed values. Human review is necessary for legal, medical, financial, or safety decisions.
 - The SSE endpoint buffers provider output until the audit completes, then sends approved text as delta events and a final event. This prevents an unchecked draft appearing in the UI, but increases time to first displayed answer.
 - History compares the saved citation digest with current file metadata and checks that the stored file exists; it does not rehash disk bytes on every history read or track external document revisions.
+- Deletion redacts assistant messages that cite the file; the user's own questions and session titles remain until a future conversation-deletion control is implemented. Backups require a separate retention policy.
 - No benchmark results, cloud deployment, security certification, high-load test, speaker diarization, speech input, or scheduled summarization are claimed in this version. See the report for evaluation design and remaining engineering work.
 
 ## Research starting points
