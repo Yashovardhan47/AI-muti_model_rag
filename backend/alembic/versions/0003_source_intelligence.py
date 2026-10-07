@@ -8,6 +8,7 @@ revision = "0003_source_intelligence"
 down_revision = "0002_evidence_audit"
 branch_labels = None
 depends_on = None
+FK_NAMING = {"fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s"}
 
 
 def upgrade():
@@ -16,15 +17,16 @@ def upgrade():
     additions = {
         "family_id": sa.Column("family_id", sa.String(36), nullable=True),
         "version": sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
-        "supersedes_id": sa.Column("supersedes_id", sa.String(36), sa.ForeignKey("files.id", ondelete="SET NULL"), nullable=True),
+        "supersedes_id": sa.Column("supersedes_id", sa.String(36), sa.ForeignKey("files.id", ondelete="SET NULL", name="fk_files_supersedes_id"), nullable=True),
         "is_current": sa.Column("is_current", sa.Boolean(), nullable=False, server_default=sa.true()),
         "ocr_languages": sa.Column("ocr_languages", sa.String(40), nullable=False, server_default="eng"),
         "processing_started_at": sa.Column("processing_started_at", sa.DateTime(timezone=True), nullable=True),
     }
-    for name, column in additions.items():
-        if name not in columns:
-            # SQLite requires a batch rewrite when adding a foreign key.
-            with op.batch_alter_table("files") as batch:
+    missing = [column for name, column in additions.items() if name not in columns]
+    if missing:
+        # SQLite requires a batch rewrite when adding a foreign key.
+        with op.batch_alter_table("files", naming_convention=FK_NAMING) as batch:
+            for column in missing:
                 batch.add_column(column)
     connection.execute(sa.text("UPDATE files SET family_id = id WHERE family_id IS NULL"))
     indexes = {item["name"] for item in sa.inspect(connection).get_indexes("files")}
@@ -34,10 +36,10 @@ def upgrade():
         op.create_index("ix_files_is_current", "files", ["is_current"])
     constraints = {item["name"] for item in sa.inspect(connection).get_unique_constraints("files")}
     if "uq_owner_sha256" in constraints:
-        with op.batch_alter_table("files") as batch:
+        with op.batch_alter_table("files", naming_convention=FK_NAMING) as batch:
             batch.drop_constraint("uq_owner_sha256", type_="unique")
     if "uq_file_family_version" not in {item["name"] for item in sa.inspect(connection).get_unique_constraints("files")}:
-        with op.batch_alter_table("files") as batch:
+        with op.batch_alter_table("files", naming_convention=FK_NAMING) as batch:
             batch.create_unique_constraint("uq_file_family_version", ["family_id", "version"])
 
     chunk_columns = {column["name"] for column in sa.inspect(connection).get_columns("chunks")}
@@ -57,12 +59,12 @@ def downgrade():
         if name in {item["name"] for item in sa.inspect(connection).get_indexes("files")}:
             op.drop_index(name, table_name="files")
     if "uq_file_family_version" in {item["name"] for item in sa.inspect(connection).get_unique_constraints("files")}:
-        with op.batch_alter_table("files") as batch:
+        with op.batch_alter_table("files", naming_convention=FK_NAMING) as batch:
             batch.drop_constraint("uq_file_family_version", type_="unique")
     if "uq_owner_sha256" not in {item["name"] for item in sa.inspect(connection).get_unique_constraints("files")}:
-        with op.batch_alter_table("files") as batch:
+        with op.batch_alter_table("files", naming_convention=FK_NAMING) as batch:
             batch.create_unique_constraint("uq_owner_sha256", ["owner_id", "sha256"])
-    with op.batch_alter_table("files") as batch:
+    with op.batch_alter_table("files", naming_convention=FK_NAMING) as batch:
         for name in ("processing_started_at", "ocr_languages", "is_current", "supersedes_id", "version", "family_id"):
             if name in {c["name"] for c in sa.inspect(connection).get_columns("files")}:
                 batch.drop_column(name)

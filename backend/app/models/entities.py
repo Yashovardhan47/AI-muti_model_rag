@@ -44,7 +44,7 @@ class File(Base):
     tags: Mapped[str] = mapped_column(Text, default="")
     family_id: Mapped[str | None] = mapped_column(String(36), index=True, nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
-    supersedes_id: Mapped[str | None] = mapped_column(ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
+    supersedes_id: Mapped[str | None] = mapped_column(ForeignKey("files.id", ondelete="SET NULL", name="fk_files_supersedes_id"), nullable=True)
     is_current: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     ocr_languages: Mapped[str] = mapped_column(String(40), default="eng")
     processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

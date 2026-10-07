@@ -5,6 +5,8 @@ from reportlab.pdfgen.canvas import Canvas
 from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 from app.services.extract import extract
+from app.services.extract import Segment
+from app.rag.chunking import split
 
 
 def test_office_pdf_tables_and_image_ocr(tmp_path: Path):
@@ -31,3 +33,14 @@ def test_office_pdf_tables_and_image_ocr(tmp_path: Path):
     ImageDraw.Draw(image).text((35, 45), 'PRESSURE 42', fill='black', font=font)
     png = tmp_path / 'chart.png'; image.save(png)
     assert 'PRESSURE 42' in extract(png, '.png')[0].text.upper()
+
+
+def test_pdf_chunk_anchors_follow_the_split_passage():
+    first = 'A' * 100
+    second = 'Cooling inspection belongs to the second paragraph and has a distinct source anchor.'
+    part = Segment(first + '\n\n' + second, 'page 2', locator={'kind': 'pdf', 'page': 2, 'anchor': first})
+    chunks = split([part], method='recursive', size=100)
+    assert len(chunks) == 2
+    assert chunks[0].text == first
+    assert chunks[1].text == second
+    assert chunks[1].locator['anchor'].startswith('Cooling inspection')
