@@ -8,7 +8,8 @@ A final-year project implementation of private multimodal retrieval-augmented se
 - FastAPI, SQLAlchemy, Alembic, PostgreSQL or SQLite, JWT access and rotating refresh tokens, bcrypt, user/admin roles, owner-scoped files, upload limits and format validation, rate limits, audit events, and exports.
 - Parsers for PDF, DOCX, PPTX, XLSX/CSV, TXT, JSON/JSONL logs, images, MP3/WAV/M4A, and MP4/MOV. Scanned PDF pages and pictures use OCR. Whisper transcribes audio and video soundtracks; OpenCV selects video frames. Tables retain row context. Optional BLIP captions, CLIP image vectors, Camelot tables, PaddleOCR, and unstructured fallback require their models or extra dependencies.
 - Document-aware, fixed, recursive, and semantic chunking; BM25 plus dense vector retrieval; optional cross-encoder reranking; file, owner, type, date, and tag search filters; Qdrant, Chroma, or FAISS selection.
-- OpenAI, Anthropic, Ollama (Llama 3/Mistral/Phi model selection), or evidence-only extractive answering. SSE supports provider token streaming and a validated final answer with citations.
+- OpenAI, Anthropic, Ollama (Llama 3/Mistral/Phi model selection), or evidence-only extractive answering. SSE delivers audited answer chunks and a final answer with citations.
+- An evidence audit checks claim-level citation IDs and exact numbers before a generated answer is shown. A failed draft is withheld in favor of direct passages; chat history marks citations stale when their source is removed or its SHA-256 changes. See [novelty roadmap](docs/NOVELTY_ROADMAP.md) for the research target and its limits.
 - Dashboard, uploads, chat history, search, reports, and admin analytics. Source files remain downloadable only by their owners. Local hash embeddings are offered explicitly for a no-download demonstration, with lower semantic quality.
 
 ## Quick start: offline demo
@@ -62,7 +63,7 @@ Copy `.env.example` to `.env`, set a unique 32+ character `JWT_SECRET`, set `POS
 │   │   ├── rag/          chunking, embeddings, vector index, retrieval, LLMs
 │   │   ├── workers/      Celery task
 │   │   └── utils/        reserved for shared utilities
-│   ├── alembic/versions/0001_initial.py
+│   ├── alembic/versions/0001_initial.py, 0002_evidence_audit.py
 │   ├── tests/
 │   ├── requirements.txt
 │   └── requirements-optional.txt
@@ -98,7 +99,7 @@ Copy `.env.example` to `.env`, set a unique 32+ character `JWT_SECRET`, set `POS
 | --- | --- |
 | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`; `GET /auth/me` | JWT session lifecycle |
 | `POST /files/upload`; `GET /files/list`, `/files/{id}/preview`; `PATCH /files/{id}/tags`; `POST /files/{id}/process`, `/files/process`; `DELETE /files/{id}` | Source lifecycle |
-| `POST /chat/query`, `/chat/query/stream`; `GET /chat/history`, `/chat/history/{id}` | Answers and sessions |
+| `POST /chat/query`, `/chat/query/stream`; `GET /chat/history`, `/chat/history/{id}` | Answers, evidence audits, and source freshness in history |
 | `GET /search`, `/dashboard` | Scoped retrieval and usage |
 | `GET /admin/users`, `/admin/analytics`; `PATCH /admin/users/{id}/role` | Admin only |
 | `GET /reports/export?format=pdf|csv|json`, `GET /health`, `GET /health/ready` | Exports and liveness |
@@ -109,7 +110,9 @@ Copy `.env.example` to `.env`, set a unique 32+ character `JWT_SECRET`, set `POS
 - `ENABLE_CLIP=true` enables image/text dual-encoder indexing. `ENABLE_IMAGE_CAPTION=true` enables BLIP captions. Both download models and need substantial RAM. Text OCR works without them. Chart interpretation is OCR plus caption-based; it does not reliably recover numerical series from arbitrary plots.
 - `OCR_LANG=eng+hin+tel` requires installed Tesseract language packs. Whisper can transcribe multilingual speech with the selected model. Default English BGE embedding is not tuned for every language; select a multilingual model for production evaluation.
 - `WHISPER_MODEL=medium` is the default; `large-v3` improves some cases but increases RAM, download, and latency. Tesseract and FFmpeg are system packages.
-- The displayed confidence label is a heuristic based on similarity and result count, **not a calibrated probability**. Citations are syntactically checked, not factually entailed. Human review is necessary for legal, medical, financial, or safety decisions.
+- Responses report `confidence=not_calibrated`. The claim audit checks citation identifiers and exact numeric presence, **not semantic entailment**. It can miss false nonnumeric claims or refuse valid computed values. Human review is necessary for legal, medical, financial, or safety decisions.
+- The SSE endpoint buffers provider output until the audit completes, then sends approved text as delta events and a final event. This prevents an unchecked draft appearing in the UI, but increases time to first displayed answer.
+- History compares the saved citation digest with current file metadata and checks that the stored file exists; it does not rehash disk bytes on every history read or track external document revisions.
 - No benchmark results, cloud deployment, security certification, high-load test, speaker diarization, speech input, or scheduled summarization are claimed in this version. See the report for evaluation design and remaining engineering work.
 
 ## Research starting points

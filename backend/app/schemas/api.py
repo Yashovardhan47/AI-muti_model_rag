@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic.networks import EmailStr
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
@@ -52,6 +53,22 @@ class Citation(BaseModel):
     location: str
     excerpt: str
     score: float
+    source_sha256: str | None = None
+    available: bool = True
+
+
+class ClaimCheck(BaseModel):
+    text: str
+    citation_numbers: list[int]
+    status: Literal["citation_checked", "blocked"]
+    issues: list[str] = Field(default_factory=list)
+
+
+class EvidenceAudit(BaseModel):
+    status: Literal["source_excerpts", "citation_checked", "withheld", "insufficient"]
+    abstained: bool
+    checks: list[ClaimCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class QueryOut(BaseModel):
@@ -60,6 +77,7 @@ class QueryOut(BaseModel):
     citations: list[Citation]
     confidence: str
     grounded: bool
+    audit: EvidenceAudit
 
 
 class SearchHit(Citation):

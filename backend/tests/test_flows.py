@@ -26,11 +26,20 @@ def test_private_upload_search_chat_and_delete(client):
     assert response.json()['citations'][0]['file_id'] == file_id
     session = response.json()['session_id']
     assert len(client.get(f'/chat/history/{session}', headers=h1).json()) == 2
+    assert client.get(f'/chat/history/{session}', headers=h1).json()[1]['citations'][0]['available'] is True
     assert client.get(f'/chat/history/{session}', headers=h2).status_code == 404
     duplicate = client.post('/files/upload', headers=h1, files={'file': ('copy.txt', b'Quarterly report: the cooling pump failed on Monday. Replace pump by Friday.', 'text/plain')})
     assert duplicate.json()['duplicate'] is True
+    from app.core.database import SessionLocal
+    from app.models import File
+    with SessionLocal() as db:
+        item = db.get(File, file_id)
+        item.sha256 = '0' * 64
+        db.commit()
+    assert client.get(f'/chat/history/{session}', headers=h1).json()[1]['citations'][0]['available'] is False
     assert client.delete(f'/files/{file_id}', headers=h1).status_code == 204
     assert client.get('/search', headers=h1, params={'q': 'cooling pump'}).json() == []
+    assert client.get(f'/chat/history/{session}', headers=h1).json()[1]['citations'][0]['available'] is False
 
 def test_auth_refresh_rotation_and_admin_boundary(client):
     user = signup(client, 'third@example.com')
@@ -54,3 +63,26 @@ def test_streaming_and_structured_log_summary(client):
     assert stream.status_code == 200, stream.text
     assert 'event: delta' in stream.text and 'event: final' in stream.text
     assert 'sensor.json' in stream.text
+
+
+def test_generated_claims_are_checked_before_sync_or_stream_delivery(client, monkeypatch):
+    user = signup(client, 'audit@example.com')
+    h = headers(user)
+    uploaded = client.post('/files/upload', headers=h, files={'file': ('pressure.txt', b'Pressure was 12% on Tuesday.', 'text/plain')})
+    assert uploaded.status_code == 201, uploaded.text
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), 'llm_provider', 'openai')
+    monkeypatch.setattr('app.api.chat.generate', lambda *args: 'Pressure was 99% [1].')
+    monkeypatch.setattr('app.rag.llm.generate_stream', lambda *args: iter(['Pressure was 99% [1].']))
+    response = client.post('/chat/query', headers=h, json={'question': 'What was the pressure?'})
+    assert response.status_code == 200, response.text
+    assert response.json()['audit']['status'] == 'withheld'
+    assert response.json()['grounded'] is False
+    assert '99%' not in response.json()['answer']
+    assert len(response.json()['citations'][0]['source_sha256']) == 64
+    stream = client.post('/chat/query/stream', headers=h, json={'question': 'What was the pressure?'})
+    assert 'event: final' in stream.text
+    assert 'Pressure was 99%' not in stream.text
+    assert '"status": "withheld"' in stream.text
+    session = response.json()['session_id']
+    assert client.get(f'/chat/history/{session}', headers=h).json()[1]['audit']['status'] == 'withheld'

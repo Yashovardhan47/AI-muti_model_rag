@@ -12,6 +12,14 @@ cd frontend && npm ci && npm run build
 
 The integration tests use isolated temporary SQLite and local Qdrant paths plus explicit hash/extractive mode. They verify registration, refresh rotation, logout, tenant isolation, upload/duplicate handling, indexing, hybrid search, citations, chat history, streamed output, tags, and deletion. They do not prove that every media decoder or external provider works.
 
+For dependency-free checks of the evidence guard and evaluation arithmetic, from `backend/` run:
+
+```bash
+python -m unittest tests.test_evidence tests.test_evaluation -v
+```
+
+The integration suite additionally checks that generated unsupported numbers never appear in sync or SSE output, that the audit persists in history, and that a deleted source is marked unavailable. Run Alembic upgrade on both an existing `0001_initial` database and a clean database when preparing a deployment.
+
 ## Manual acceptance walkthrough
 
 1. Create two ordinary users. Upload a TXT containing a unique fact as user A. Confirm status `ready` and that A can find/cite it; B cannot list, preview, select, search, or read A's session.
@@ -20,6 +28,7 @@ The integration tests use isolated temporary SQLite and local Qdrant paths plus 
 4. Try invalid extension, mislabeled PDF, empty file, oversized file, duplicate, unsupported password-protected document, and corrupted audio. Check 4xx rejection or visible failed state and retry.
 5. Verify type/date/tag filters, upload/process/delete, reports, history, light/dark layout, mobile navigation, and admin-only routes. Run PostgreSQL + Redis + Qdrant Compose separately from SQLite smoke tests.
 6. Verify provider credentials and Ollama availability when enabling generation. Audit latency and usage costs. Test reconnection, worker restart, queue outage, and deletion during indexing before public deployment.
+7. Ask a model to produce an uncited claim, a nonexistent citation, and a number missing from its cited passage. Inspect the withheld answer and audit in both ordinary chat and SSE. Delete an uploaded source, reopen the conversation, and check that its citation cannot be opened. Also test a wrong nonnumeric claim with a valid citation to see the current guard's limitation.
 
 ## Research evaluation protocol
 
@@ -29,6 +38,18 @@ Compare: (A) BM25, (B) dense retrieval, (C) reciprocal-rank-fused hybrid, and (D
 
 For privacy test that no answer or citation contains a canary from another user's tenant across all API paths and vector backends. For prompt injection test source text containing instructions like “ignore previous instructions”; assert it is quoted as data or rejected, never followed. For corruption test kill a worker between vector and SQL commit and inspect recovery needs.
 
+### Repeatable retrieval study
+
+Create a JSONL file with one human-labeled question per line. Each row has `question`, `answerable` (boolean), `modality` (label), and `evidence` (an array of exact `file_id` and `location` pairs returned by uploads and search). Include empty evidence for genuinely unanswerable questions; keep them separate when interpreting retrieval recall. Use a dedicated test account and de-identified files.
+
+```bash
+export ATLAS_BENCHMARK_TOKEN='access token for the test account'
+python backend/tools/evaluate.py study.jsonl --top-k 6 --output study-results.json
+python backend/tools/evaluate.py study.jsonl --top-k 6 --answers --output study-answers.json
+```
+
+The default run calls `/search` and reports gold evidence recall@k and MRR overall and by modality. `--answers` additionally calls `/chat/query` and reports abstention accuracy; it may incur cloud provider cost and writes chat history to the test account. The script does **not** compute factual accuracy or prove citation support. Human annotation and blind review are still required for the research paper. Compare settings using the same labels and document split, and record model/provider revisions with each run.
+
 ## Current checked result
 
-At initial implementation the focused backend integration suite completed with 4 passing tests, and the frontend TypeScript/Vite production build succeeded. These are implementation smoke checks, not retrieval-quality or security certification. Re-run on the exact branch commit before demonstration.
+At initial implementation the focused backend integration suite completed with 4 passing tests and the frontend TypeScript/Vite build succeeded. After the evidence update, the dependency-free unit tests should be run again; the complete integration and frontend checks must be rerun with installed dependencies on the exact branch commit before demonstration. These are implementation checks, not retrieval-quality or security certification.

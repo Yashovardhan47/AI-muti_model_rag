@@ -38,4 +38,4 @@ def retrieve(db: Session, owner_id: str, question: str, k: int = 6, file_ids: li
             retrieve.reranker = CrossEncoder(get_settings().rerank_model)
         scores = retrieve.reranker.predict([(question, chunk.text[:2000]) for chunk, _, _ in matches[:k*3]])
         matches = sorted([(c, f, float(score)) for (c, f, _), score in zip(matches[:k*3], scores)], key=lambda x: x[2], reverse=True)
-    return [SearchHit(number=i+1, file_id=f.id, file_name=f.name, chunk_id=c.id, location=c.location, excerpt=c.text[:1200], score=round(float(dense_scores.get(c.id, score)), 3), modality=c.modality) for i, (c, f, score) in enumerate(matches[:k])]
+    return [SearchHit(number=i+1, file_id=f.id, file_name=f.name, chunk_id=c.id, location=c.location, excerpt=c.text[:1200], score=round(float(dense_scores.get(c.id, score)), 3), modality=c.modality, source_sha256=f.sha256) for i, (c, f, score) in enumerate(matches[:k])]

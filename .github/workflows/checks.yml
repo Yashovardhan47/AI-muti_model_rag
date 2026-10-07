@@ -15,7 +15,9 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr fonts-dejavu-core
       - run: pip install -r backend/requirements-ci.txt
       - run: PYTHONPATH=backend pytest -q backend/tests
-      - run: python -m compileall -q backend/app backend/alembic
+      - run: python -m compileall -q backend/app backend/alembic backend/tools
+      - run: DATABASE_URL=sqlite:////tmp/atlas-migration-ci.db alembic upgrade head
+        working-directory: backend
   frontend:
     runs-on: ubuntu-latest
     steps:
