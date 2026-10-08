@@ -48,6 +48,8 @@ Open `http://localhost:5173`; the API docs are at `http://localhost:8000/docs`. 
 
 ## Browser preview deployment
 
+[Deploy your own browser preview on Render](https://render.com/deploy?repo=https://github.com/Yashovardhan47/AI-muti_model_rag). This opens the hosting setup; it is not a live demo URL until the deployment completes.
+
 The repository includes a single-service [Render Blueprint](render.yaml) and [preview Dockerfile](Dockerfile.demo). Connect this GitHub repository in Render and create a Blueprint instance to receive a live URL. The same origin serves React at `/` and FastAPI at `/api` (API docs at `/api/docs`). The container initializes the database and shows a temporary-data notice; visitors register their own accounts and can upload sample documents, search, chat, and inspect citations.
 
 The free preview uses hash embeddings, extractive answers, a tiny speech model, SQLite, local Qdrant, and FastAPI background processing. Model-heavy capabilities and concurrent workloads need a larger service. Free instance storage is ephemeral, so accounts and uploads can disappear on restart; do not submit private material. This Blueprint is for browsing the project, not a persistent enterprise deployment. See [deployment](docs/DEPLOYMENT.md) for the full-stack Docker Compose route.
