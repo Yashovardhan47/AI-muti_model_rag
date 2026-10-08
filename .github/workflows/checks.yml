@@ -35,3 +35,18 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+  browser-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f Dockerfile.demo -t atlas-browser-demo .
+      - name: Serve built UI and API
+        run: |
+          docker run -d --name atlas-browser-demo -p 10000:10000 -e APP_ENV=production -e EMBEDDING_PROVIDER=hash -e JWT_SECRET=ci-only-demo-secret-do-not-use-on-public-instances-123 atlas-browser-demo
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:10000/api/health/ready; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:10000/api/health/ready
+          curl -fsS http://127.0.0.1:10000/app/chat | grep -q "assets/"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/assets/missing.js)" = "404"

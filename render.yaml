@@ -1,0 +1,32 @@
+# Resource-limited browser preview. Render Free storage is ephemeral.
+services:
+  - type: web
+    name: atlas-rag-preview
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.demo
+    dockerContext: .
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///./data/app.db
+      - key: STORAGE_DIR
+        value: /code/data/uploads
+      - key: QDRANT_PATH
+        value: /code/data/qdrant
+      - key: EMBEDDING_PROVIDER
+        value: hash
+      - key: VECTOR_BACKEND
+        value: qdrant
+      - key: LLM_PROVIDER
+        value: extractive
+      - key: WHISPER_MODEL
+        value: tiny
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: CORS_ORIGINS
+        value: ""

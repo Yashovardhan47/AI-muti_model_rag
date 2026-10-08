@@ -46,6 +46,12 @@ npm run dev
 
 Open `http://localhost:5173`; the API docs are at `http://localhost:8000/docs`. Register, upload a TXT or PDF, wait until status becomes `ready`, then search and ask a question. Local indexing uses a FastAPI background task after the upload response; start Redis/Celery for durable queue operation.
 
+## Browser preview deployment
+
+The repository includes a single-service [Render Blueprint](render.yaml) and [preview Dockerfile](Dockerfile.demo). Connect this GitHub repository in Render and create a Blueprint instance to receive a live URL. The same origin serves React at `/` and FastAPI at `/api` (API docs at `/api/docs`). The container initializes the database and shows a temporary-data notice; visitors register their own accounts and can upload sample documents, search, chat, and inspect citations.
+
+The free preview uses hash embeddings, extractive answers, a tiny speech model, SQLite, local Qdrant, and FastAPI background processing. Model-heavy capabilities and concurrent workloads need a larger service. Free instance storage is ephemeral, so accounts and uploads can disappear on restart; do not submit private material. This Blueprint is for browsing the project, not a persistent enterprise deployment. See [deployment](docs/DEPLOYMENT.md) for the full-stack Docker Compose route.
+
 ## Container mode
 
 Copy `.env.example` to `.env`, set a unique 32+ character `JWT_SECRET`, set `POSTGRES_PASSWORD` in `.env`, and change `CORS_ORIGINS` to the actual origin. Set `EMBEDDING_PROVIDER=hash` if avoiding initial model downloads. Then run `docker compose up --build`; open `http://localhost:5173`. The API migrates PostgreSQL on startup. A Redis-backed Celery worker, seven-day embedding cache, and remote Qdrant run alongside it. For a privileged account, set `ADMIN_EMAIL` and a 12+ character `ADMIN_PASSWORD` before the first startup. Public registration always creates a User account.
