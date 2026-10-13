@@ -13,7 +13,7 @@ A final-year project implementation of private multimodal retrieval-augmented se
 - Source revisions remain addressable; current-version search is the default, while historical versions can be searched explicitly. Exact parsed table/log field changes and changed passages can be compared. The evidence viewer renders PDF pages and visual regions or seeks to a cited audio/video time. Visual highlighting can be approximate.
 - Owner-issued read grants cover a source's versions. Shared users can search and cite, but cannot modify files; deletion or revocation redacts their stored cited answers. An hourly index reconciliation task replays committed vectors and queues interrupted work. A folder sync CLI uploads changed local files as new revisions.
 - English, Hindi, and Telugu OCR selection and answer-language prompts are supported, with multilingual E5 as an embedding option. A synthetic ten-question benchmark seed and evaluation harness report retrieval recall/MRR, structural abstention, and latency by modality/language. These are not validated quality results.
-- Dashboard, uploads, chat history, search, reports, and admin analytics. Local hash embeddings are offered explicitly for a no-download demonstration, with lower semantic quality.
+- A public project overview at `/`, followed by a separate authenticated home at `/app` after login or registration. Detailed file and usage analytics are at `/app/overview`; upload, chat, search, reports, and admin routes remain in the workspace. Local hash embeddings are offered explicitly for a no-download demonstration, with lower semantic quality.
 
 ## Quick start: offline demo
 
@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`; the API docs are at `http://localhost:8000/docs`. Register, upload a TXT or PDF, wait until status becomes `ready`, then search and ask a question. Local indexing uses a FastAPI background task after the upload response; start Redis/Celery for durable queue operation.
+Open `http://localhost:5173` for the public project overview; the API docs are at `http://localhost:8000/docs`. Register or sign in to reach your personal home at `/app`. Upload a TXT or PDF, wait until status becomes `ready`, then search and ask a question. Detailed analytics live at `/app/overview`. Local indexing uses a FastAPI background task after the upload response; start Redis/Celery for durable queue operation.
 
 ## Browser preview deployment
 

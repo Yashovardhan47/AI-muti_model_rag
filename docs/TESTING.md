@@ -22,6 +22,8 @@ The integration suite additionally checks that generated unsupported numbers nev
 
 ## Manual acceptance walkthrough
 
+Before creating files, open `/` while signed out and review the public project overview, its format and workflow sections, and links to login/register. Confirm `/app` redirects to login. Register and verify `/app` opens the personal home with empty-workspace guidance; sign out and confirm the public overview returns. Sign in again and verify `/app` opens home, while `/app/overview` is the separate analytics page.
+
 1. Create two ordinary users. Upload a TXT containing a unique fact as user A. Confirm status `ready` and that A can find/cite it; B cannot list, preview, select, search, or read A's session.
 2. Upload PDF with searchable text, a scanned PDF, DOCX with tables, PPTX with a chart image, XLSX and CSV, JSONL sensor logs, a PNG chart, an audio recording, and a short MP4. For each, verify status and that location metadata identifies page/slide/row/time. Install Tesseract, FFmpeg, Whisper weights, and optional model dependencies as configured.
 3. Submit a question requiring two files. Check every answer claim against the linked source. Test absent evidence; expect an explicit inability to verify.
