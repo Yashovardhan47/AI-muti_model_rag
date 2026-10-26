@@ -36,5 +36,8 @@ Run the included retrieval harness with a JSONL manifest whose rows contain an a
 - CRAG measures challenging factual retrieval and answering; its benchmark motivates explicit unanswerable and dynamic-source cases. https://proceedings.neurips.cc/paper_files/paper/2024/hash/1435d2d0fca85a84d83ddcb754f58c29-Abstract-Datasets_and_Benchmarks_Track.html
 - MMDocRAG evaluates cross-page, cross-modal document evidence. Atlas must compare against this line of work before claiming a new cross-modal method. https://arxiv.org/abs/2505.16470
 - VISA already studies exact visual source attribution. A future Atlas region highlighter should cite and compare against it. https://aclanthology.org/2025.acl-long.1456/
+- VersionRAG already studies version-aware retrieval and change tracking. Atlas needs a distinct cross-modal, claim-level hypothesis and an explicit comparison before making a novelty claim. https://arxiv.org/abs/2510.08109
+- VideoRAG already combines graph-based and multimodal long-video retrieval. Query-adaptive temporal grounding needs a measurable improvement over that class of baseline. https://arxiv.org/abs/2502.01549
+- MuSciClaims evaluates multimodal claim verification with figures and highlights evidence-localization errors; use it to shape chart and image evidence tests. https://aclanthology.org/2025.ijcnlp-long.175/
 
 No paper acceptance, patentability, or measured improvement follows from this roadmap alone.

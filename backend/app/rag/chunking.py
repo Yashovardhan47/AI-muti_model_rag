@@ -2,6 +2,43 @@ import re
 from app.services.extract import Segment
 
 
+def _bound(segment: Segment, max_length: int = 8000) -> list[Segment]:
+    """Keep every character of an oversized source, including preserved tables.
+
+    A long table is split into parts with its header repeated for row context.
+    Parts retain the original source locator and disclose their reduced precision.
+    """
+    if len(segment.text) <= max_length:
+        return [segment]
+    header = segment.text.splitlines()[0][:200] if segment.modality == "table" else ""
+    prefix = header + "\n" if header else ""
+    stride = max_length - len(prefix)
+    # Prefer complete rows, falling back to character slices for a single
+    # oversized cell or line. Keep newline characters so no source text drops.
+    pieces, current = [], ""
+    for line in segment.text.splitlines(keepends=True):
+        if len(current) + len(line) > stride and current:
+            pieces.append(current)
+            current = ""
+        while len(line) > stride:
+            pieces.append(line[:stride])
+            line = line[stride:]
+        if len(current) + len(line) > stride:
+            pieces.append(current)
+            current = ""
+        current += line
+    if current:
+        pieces.append(current)
+    parts = []
+    for i, piece in enumerate(pieces, 1):
+        locator = {**segment.locator, "part": i, "part_count": len(pieces)}
+        quality = {**segment.quality, "flags": list(dict.fromkeys(
+            [*segment.quality.get("flags", []), "oversized_segment_split"]))}
+        parts.append(Segment((prefix if i > 1 else "") + piece, segment.location,
+                             segment.modality, segment.image, locator=locator, quality=quality))
+    return parts
+
+
 def split(segments: list[Segment], method: str = "document", size: int = 900, overlap: int = 120, embedder=None) -> list[Segment]:
     output = []
     for segment in segments:
@@ -41,4 +78,4 @@ def split(segments: list[Segment], method: str = "document", size: int = 900, ov
                     locator["anchor"] = " ".join(group.split()[:8])
                 output.append(Segment(group.strip(), segment.location, segment.modality, segment.image,
                                       locator=locator, quality=segment.quality.copy()))
-    return output
+    return [part for segment in output for part in _bound(segment)]

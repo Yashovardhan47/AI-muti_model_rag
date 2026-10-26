@@ -1,4 +1,5 @@
 from pathlib import Path
+import pytest
 from docx import Document
 from pptx import Presentation
 from reportlab.pdfgen.canvas import Canvas
@@ -44,3 +45,31 @@ def test_pdf_chunk_anchors_follow_the_split_passage():
     assert chunks[0].text == first
     assert chunks[1].text == second
     assert chunks[1].locator['anchor'].startswith('Cooling inspection')
+
+
+def test_large_preserved_source_is_fully_chunked():
+    source = 'head\n' + ('A' * 24000) + 'LAST_EVIDENCE'
+    chunks = split([Segment(source, 'JSON', 'logs', preserve=True, locator={'kind': 'json'})])
+    assert len(chunks) > 1
+    assert ''.join(chunk.text for chunk in chunks) == source
+    assert all(len(chunk.text) <= 8000 for chunk in chunks)
+    assert all('oversized_segment_split' in chunk.quality['flags'] for chunk in chunks)
+    assert chunks[-1].locator['part_count'] == len(chunks)
+
+
+def test_large_table_keeps_rows_and_repeats_header():
+    header = 'asset,value\n'
+    source = header + ''.join(f'asset-{i},{i}\n' for i in range(1000))
+    chunks = split([Segment(source, 'sheet Main', 'table', preserve=True)])
+    assert len(chunks) > 1
+    assert all(len(chunk.text) <= 8000 for chunk in chunks)
+    assert all(chunk.text.startswith(header) for chunk in chunks)
+    assert chunks[0].text + ''.join(chunk.text[len(header):] for chunk in chunks[1:]) == source
+    assert all(chunk.text.endswith('\n') for chunk in chunks)
+
+
+def test_csv_row_limit_fails_instead_of_silently_omitting_evidence(tmp_path: Path):
+    csv = tmp_path / 'records.csv'
+    csv.write_text('id,value\n' + ''.join(f'{i},ok\n' for i in range(100001)))
+    with pytest.raises(ValueError, match='100000-row indexing limit'):
+        extract(csv, '.csv')

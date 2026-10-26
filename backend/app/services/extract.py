@@ -195,9 +195,12 @@ def extract(path: Path, extension: str, ocr_languages: str | None = None) -> lis
         return result
     if extension in {".csv", ".xlsx"}:
         import pandas as pd
-        sheets = pd.read_excel(path, sheet_name=None, nrows=100000) if extension == ".xlsx" else {"CSV": pd.read_csv(path, nrows=100000)}
+        # Read one extra row so the limit cannot silently omit source evidence.
+        sheets = pd.read_excel(path, sheet_name=None, nrows=100001) if extension == ".xlsx" else {"CSV": pd.read_csv(path, nrows=100001)}
         result = []
         for sheet, frame in sheets.items():
+            if len(frame) > 100000:
+                raise ValueError(f"Sheet {sheet} exceeds the 100000-row indexing limit; split the source before upload")
             for start in range(0, len(frame), 30):
                 result.append(Segment(frame.iloc[start:start+30].fillna("").to_csv(index=False), f"sheet {sheet} rows {start+1}-{min(len(frame), start+30)}", "table", preserve=True,
                                       locator={"kind": "spreadsheet", "sheet": sheet, "row_start": start+1,

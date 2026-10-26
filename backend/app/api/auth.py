@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.rate_limit import limit
@@ -45,12 +45,18 @@ def login(body: Login, db: Session = Depends(get_db)):
 @router.post("/refresh", dependencies=[Depends(limit("refresh", 30))])
 def refresh(body: Refresh, db: Session = Depends(get_db)):
     payload = decode(body.refresh_token, "refresh")
-    saved = db.get(RefreshToken, payload["jti"])
     user = db.get(User, payload["sub"])
-    if not user or not saved or saved.user_id != user.id or saved.revoked or saved.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+    if not user:
         raise HTTPException(401, "Refresh token revoked")
-    saved.revoked = True
-    db.flush()
+    # Redeem once in the database. Two simultaneous requests must not each
+    # mint a new session from the same refresh token.
+    redeemed = db.execute(update(RefreshToken).where(
+        RefreshToken.id == payload["jti"], RefreshToken.user_id == user.id,
+        RefreshToken.revoked.is_(False), RefreshToken.expires_at > datetime.now(timezone.utc)
+    ).values(revoked=True))
+    if redeemed.rowcount != 1:
+        db.rollback()
+        raise HTTPException(401, "Refresh token revoked")
     return issue(db, user)
 
 

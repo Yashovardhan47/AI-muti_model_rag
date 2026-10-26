@@ -23,8 +23,14 @@ def retrieve(db: Session, owner_id: str, question: str, k: int = 6, file_ids: li
     rows = db.execute(stmt).all()
     if not rows: return []
     tokens = lambda x: re.findall(r"\w+", x.lower())
-    bm = BM25Okapi([tokens(chunk.text) or [""] for chunk, _ in rows])
-    lexical = bm.get_scores(tokens(question))
+    corpus = [tokens(chunk.text) or [""] for chunk, _ in rows]
+    query_terms = tokens(question)
+    # Hash vectors only approximate lexical overlap; they cannot establish a
+    # semantic match when no query term occurs in an indexed passage.
+    if get_settings().embedding_provider == "hash" and not any(set(query_terms) & set(words) for words in corpus):
+        return []
+    bm = BM25Okapi(corpus)
+    lexical = bm.get_scores(query_terms)
     bm_rank = sorted(range(len(rows)), key=lambda i: lexical[i], reverse=True)[:k*3]
     candidates: dict[str, float] = {rows[i][0].id: 0.35 / (60 + rank + 1) for rank, i in enumerate(bm_rank)}
     dense_scores: dict[str, float] = {}

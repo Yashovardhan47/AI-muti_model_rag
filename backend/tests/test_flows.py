@@ -45,6 +45,28 @@ def test_private_upload_search_chat_and_delete(client):
     assert deleted_history['content'].startswith('Answer removed because')
     assert client.get('/reports/export?format=json', headers=h1).json()['messages'][1]['content'] == deleted_history['content']
 
+
+def test_hash_demo_abstains_when_query_has_no_matching_terms(client):
+    user = signup(client, 'no-match@example.com')
+    h = headers(user)
+    uploaded = client.post('/files/upload', headers=h,
+                           files={'file': ('pump.txt', b'Cooling pump inspection scheduled Friday.', 'text/plain')})
+    assert uploaded.status_code == 201, uploaded.text
+    assert client.get('/search', headers=h, params={'q': 'quasar nebula'}).json() == []
+    answer = client.post('/chat/query', headers=h, json={'question': 'Describe the quasar nebula.'}).json()
+    assert answer['audit']['status'] == 'insufficient'
+    assert answer['citations'] == []
+
+
+def test_search_tag_matches_a_whole_tag(client):
+    user = signup(client, 'tag-search@example.com')
+    h = headers(user)
+    uploaded = client.post('/files/upload', headers=h,
+                           files={'file': ('pressure.json', b'{"pressure":"steady"}', 'application/json')})
+    assert uploaded.status_code == 201, uploaded.text
+    assert client.get('/search', headers=h, params={'q': 'pressure', 'tag': 'json'}).json()
+    assert client.get('/search', headers=h, params={'q': 'pressure', 'tag': 'son'}).json() == []
+
 def test_auth_refresh_rotation_and_admin_boundary(client):
     user = signup(client, 'third@example.com')
     assert client.get('/admin/users', headers=headers(user)).status_code == 403

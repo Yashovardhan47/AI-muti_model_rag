@@ -2,6 +2,8 @@
 
 A final-year project implementation of private multimodal retrieval-augmented search and question answering. Atlas ingests documents, scans, images, spreadsheets, recordings, video, and logs; stores source-located chunks; retrieves with lexical and vector signals; and returns cited answers. The repository was initialized from the existing `Yashovardhan47/AI-muti_model_rag` license-only project.
 
+The [release audit](docs/RELEASE_AUDIT.md) records the current demo readiness, verified fixes, and remaining public-deployment gates.
+
 ## What runs today
 
 - React 19, TypeScript, Vite 8, Tailwind 4, Material UI, React Query, Axios, Zustand, Recharts, and Framer Motion UI.

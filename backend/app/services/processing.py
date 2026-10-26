@@ -31,7 +31,7 @@ def process_file(file_id: str, chunk_method: str = "document") -> None:
             parts = split(segments, method=chunk_method, embedder=embedder() if chunk_method == "semantic" else None)
             if not parts: raise ValueError("No extractable content; check OCR or file format")
             for ordinal, part in enumerate(parts):
-                chunk = Chunk(file_id=file.id, owner_id=file.owner_id, ordinal=ordinal, text=part.text[:20000], location=part.location[:120], modality=part.modality,
+                chunk = Chunk(file_id=file.id, owner_id=file.owner_id, ordinal=ordinal, text=part.text, location=part.location[:120], modality=part.modality,
                               locator_json=json.dumps(part.locator), quality_json=json.dumps(part.quality))
                 db.add(chunk); db.flush()
                 vector = embedder().embed([chunk.text])[0]

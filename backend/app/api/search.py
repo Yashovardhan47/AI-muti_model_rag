@@ -17,8 +17,10 @@ def search(q: str = Query(min_length=2, max_length=1000), file_type: str | None 
     if not include_versions: stmt = stmt.where(File.is_current.is_(True))
     if owner: stmt = stmt.where(File.owner_id == owner)
     if file_type: stmt = stmt.where(File.name.ilike(f"%.{file_type.lstrip('.').lower()}"))
-    if tag: stmt = stmt.where(File.tags.ilike(f"%{tag}%"))
     if date_from: stmt = stmt.where(File.created_at >= datetime.combine(date_from, datetime.min.time(), timezone.utc))
     ids = db.scalars(stmt).all()
+    if tag:
+        requested = tag.strip().casefold()
+        ids = [file for file in ids if requested in file.tags.casefold().split(",")]
     if not ids: return []
     return retrieve(db, user.id, q, top_k, [f.id for f in ids])
