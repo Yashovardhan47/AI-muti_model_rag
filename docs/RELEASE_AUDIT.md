@@ -16,6 +16,7 @@ This review covers the repository's API, frontend, migrations, tests, dependency
 | Authentication | Refresh-token redemption is one conditional database update, preventing two successful redemptions of the same token. | Existing rotation and replay endpoint test; concurrent load testing remains required. |
 | Search filters | Tags match whole tags instead of substrings. | Search regression test. |
 | Frontend supply chain | Updated vulnerable `follow-redirects` and build-tool transitive dependencies in the lockfile. | `npm ci`, build, and full dependency audit with zero reported advisories. |
+| Python supply chain | Raised Pillow to the fixed major release and upgraded the container packaging tool. | OCR, image, PDF, and integration tests with Pillow 13; Python dependency audit in CI. |
 | Deployment checks | CI now audits all frontend dependencies and exercises register → upload → indexing → search → cited chat inside the preview container. | Must pass on the main-branch workflow after commit. |
 
 Local verification: 23 backend tests plus 3 subtests passed, Python compiled, SQLite migration upgrade/downgrade/upgrade passed, and the React production build passed. Docker was unavailable in the audit environment, so the new container workflow is the release gate for the preview. Warnings remain from the test client's evolving upstream API and Qdrant's local payload-index behavior; neither warning indicates a failed test.

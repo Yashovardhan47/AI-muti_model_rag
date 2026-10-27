@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr tesseract-ocr-hin tesseract-ocr-tel ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements-ci.txt ./requirements-ci.txt
-RUN pip install --no-cache-dir -r requirements-ci.txt \
+RUN python -m pip install --no-cache-dir --upgrade 'pip>=26.2,<27' \
+    && pip install --no-cache-dir -r requirements-ci.txt \
     "faster-whisper>=1.1,<2" "opencv-python-headless>=4.10,<5"
 COPY backend/ ./
 COPY --from=frontend /frontend/dist /code/frontend-dist
